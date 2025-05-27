@@ -2,7 +2,7 @@ const bcrypt = require('bcrypt')
 const jwt = require('jsonwebtoken')
 const db = require('../db/connect')
 const { StatusCodes } = require('http-status-codes')
-
+//register
 
 const register = async (req, res, next) => {
 
