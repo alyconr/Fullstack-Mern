@@ -12,12 +12,17 @@ const register = async (req, res, next) => {
         const hashed = await bcrypt.hash(password, 10);
 
         const [result] = await db.promise().query(
-            'INSERT INTO users (username, email, password) VALUES (?, ?, ?)',
+            'INSERT INTO users (name, email, password) VALUES (?, ?, ?)',
             [username, email, hashed]
         );
 
         res.status(StatusCodes.CREATED).json({
-            msg: 'Usuario Registrado con exito'
+            msg: 'Usuario Registrado con exito',
+            user: {
+                id: result.insertId,
+                name: username,
+                email: email
+            }
         });
 
     } catch (err) {
@@ -30,37 +35,40 @@ const login = async (req, res, next) => {
     try {
         const { email, password } = req.body;
 
+        const sql = 'SELECT * FROM users WHERE email = ?';
+        const [rows] = await db.promise().query(sql, [email]);
 
-        const [rows] = await db.promise().query(
-            'SELECT * FROM users WHERE email = ?', [email]
-        );
-
+        if (rows.length === 0) {
+            return res.status(StatusCodes.UNAUTHORIZED).json({ msg: 'Credenciales incorrectas' });
+        }
         const user = rows[0];
 
-        if (!user) return
+        const isMatch = await bcrypt.compare(password, user.password);
+        if (!isMatch) {
+            return res.status(StatusCodes.UNAUTHORIZED).json({ msg: 'Credenciales incorrectas' });
+        }
 
-        res.status(StatusCodes.UNAUTHORIZED).json({
-            msg: 'Credenciales Invalidas'
-        })
-
-        const valid = await bcrypt.compare(password, user.password);
-
-        if (!valid) return
-        res.status(StatusCodes.UNAUTHORIZED).json({
-            msg: 'Credenciales invalidas'
-        })
-
-        const token = jwt.sign({
-            id: user.id,
-            email: user.email
-        }, process.env.JWT_SECRET, {
-            expiresIn: '1d'
+        const token = jwt.sign({ id: user.id, email: user.email }, process.env.JWT_SECRET, {
+            expiresIn: '1h'
         });
 
-        res.status(StatusCodes.OK).json({
-            token
-        });
-
+        res
+            .cookie('token', token, {
+                httpOnly: true,
+                secure: process.env.NODE_ENV === 'production',
+                sameSite: 'none',
+            })
+            .status(StatusCodes.OK)
+            .json({
+                msg: 'Inicio de sesión exitoso',
+                user: {
+                    id: user.id,
+                    name: user.name,
+                    email: user.email,
+                },
+                token
+            });
+       
 
 
     } catch (err) {
