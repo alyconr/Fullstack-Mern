@@ -54,9 +54,13 @@ module.exports = router;
  *           schema:
  *             type: object
  *             required:
+ *               - username
  *               - email
  *               - password
  *             properties:
+ *               username:
+ *                 type: string
+ *                 example: usuario123
  *               email:
  *                 type: string
  *                 example: usuario@email.com
